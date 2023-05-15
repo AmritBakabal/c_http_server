@@ -1,0 +1,33 @@
+-> man man -> manual for manuals
+-> man pages used from linux (eg. man socket, man 3 printf(3 = library call))<
+-> echo$? -> checking output 
+
+-> check -> vimtutor
+    man bash cmds:
+        only crusor moves
+        ctrl+a = ahead (<-)
+        ctrl+e = end line (->)
+        ctrl+u = crusor dekhi ahgadi ko sabai katxa 
+        ctrl+h = backspace ko satta (hit)
+
+-> . is used for hidden files in linux
+
+-> to add alias as permanent:
+    run => './a.out :
+        ~ = pwd (same)
+        ls -a (home path) -> .bashrc
+        vim ~/.bashrc
+        add : alias run='./a.out'
+
+->to give variable address & is used.  
+-> structure is made of premitive types(int, char, pointer etc)         
+
+-> abbriviation:
+
+    -> CRLF = \n\r
+
+VIM text-actions
+    to change inside the delimiters
+    
+    ci ' " [ { ( )}]
+    ci <
