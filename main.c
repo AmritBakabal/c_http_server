@@ -1,4 +1,10 @@
+#define _XOPEN_SOURCE
 #include <sys/types.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
 #include <unistd.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -6,12 +12,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <netinet/in.h>
-
-#define _XOPEN_SOURCE
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
 
 #include "miti/include/miti.h"
 #define MITIBUFFERSIZE 32
@@ -564,7 +564,7 @@ int main()
     char buffer[buffer_size];
     // server response protocol: rfc 7230
     char *msg = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<html><body> I server %d Clients."
-                "\nToday is %s</body></html>";
+                "\nToday's miti is %s</body></html>";
 
     // file descriptor for the new socket is returned
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
