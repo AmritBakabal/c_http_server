@@ -1,4 +1,4 @@
-#include "die.h"
+#include "../../include/die/die.h"
 #include <stdlib.h>
 #include <stdio.h>
 
