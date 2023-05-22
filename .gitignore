@@ -1,1 +1,6 @@
 .vscode
+images/
+obj/
+bin/
+a.out
+*.o

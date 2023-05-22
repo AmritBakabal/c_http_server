@@ -1,11 +1,14 @@
-main: main.o die.o
-	gcc -o main main.o die.o
+bin/main: obj/main.o obj/die.o obj/stringbuffer.o
+	gcc -o bin/main obj/main.o obj/die.o obj/stringbuffer.o
 
-main.o: main.c
-	gcc -c main.c
+obj/main.o: src/main.c
+	gcc -o obj/main.o -c src/main.c
 
-die.o: die.c
-	gcc -c die.c
+obj/die.o: lib/die/die.c
+	gcc -o obj/die.o -c lib/die/die.c
+	
+obj/stringbuffer.o: lib/stringbuffer/stringbuffer.c
+	gcc -o obj/stringbuffer.o -c lib/stringbuffer/stringbuffer.c
 
-run: main
-	./main
+run: bin/main
+	./bin/main
