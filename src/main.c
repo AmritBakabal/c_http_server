@@ -1,22 +1,19 @@
 #define _XOPEN_SOURCE
-#include <sys/types.h>
-#include <stdio.h>
+#include <dirent.h>
 #include <stdlib.h>
-#include <string.h>
+#include <sys/types.h>
 #include <time.h>
 
-#include <unistd.h>
+#include <netinet/in.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
-#include <sys/types.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <netinet/in.h>
+#include <unistd.h>
 
 #include "../include/die/die.h"
 #include "../include/stringbuffer/stringbuffer.h"
 
-void get_route(char *reqbuffer, int reqbuffersize, char *route_string, int route_size);
+void get_route(char* reqbuffer, int reqbuffersize, char* route_string, int route_size);
 
 int main()
 {
@@ -34,17 +31,18 @@ int main()
     int route_size = 1024;
     char route_string[route_size];
     int reqbuffersize;
+    struct string_buffer* web_page = string_buffer_create();
+
+    DIR* dir;
+    struct dirent* dir_pointer;
     // server response protocol: rfc 7230
-    char *msg = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n"
-        "<h1>Welcome to Nepathya College. </h1>%d";
-    int buflen = strlen(msg);
-    
+
     // file descriptor for the new socket is returned
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     serverSocket != -1 || DIE("socket error");
 
-    //reuse already bound address for this socket
-    setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR,  &reuse_address,sizeof(reuse_address)) == 0 || DIE("setsockopt error");
+    // reuse already bound address for this socket
+    setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &reuse_address, sizeof(reuse_address)) == 0 || DIE("setsockopt error");
 
     // ip :
     struct sockaddr_in Internet_address = {
@@ -57,7 +55,7 @@ int main()
     };
 
     // bind:
-    bind(serverSocket, (struct sockaddr *)&Internet_address, sizeof(struct sockaddr_in)) != -1 || DIE("bind error");
+    bind(serverSocket, (struct sockaddr*)&Internet_address, sizeof(struct sockaddr_in)) != -1 || DIE("bind error");
 
     // listen:
     listen(serverSocket, 10) != -1 || DIE("listen error");
@@ -69,31 +67,141 @@ int main()
     int client_count = 0;
     ssize_t byte_status;
 
-    while (1)
-    {
+    while (1) {
         client_socket = accept(serverSocket, NULL, NULL);
         client_socket != -1 || DIE("accept error");
 
-        //read client request 
+        // read client request
         RETVAL = recv(client_socket, reqbuffer, 1024, 0);
         RETVAL != -1 || DIE("recv error");
         reqbuffer[RETVAL] = '\0';
-        //printf("%s\n", reqbuffer);
+        // printf("%s\n", reqbuffer);
         char final_route[1024];
-        char *hex_space = "%20";
+        char* hex_space = "%20";
         int idx = 0;
         get_route(reqbuffer, RETVAL, route_string, route_size);
         printf("ROUTE:%s\n", route_string);
         int r_len = strlen(route_string);
-        
-        snprintf(respbuffer, buffer_size, msg, client_count);
+
+        string_buffer_write(web_page, "HTTP/1.1 200 OK\r\n");
+        string_buffer_write(web_page, "Content-Type: text/html\r\n");
+        string_buffer_write(web_page, "\r\n");
+        string_buffer_write(web_page,
+            // s/(^|$)/"/g
+            "<!DOCTYPE html>"
+            "<html lang=\"en\">"
+            "<head>"
+            "<meta charset=\"UTF-8\" />"
+            "<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\" />"
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />"
+            "<title>Document</title>"
+            "<style>"
+            // ".box {"
+            // "display: flex;"
+            // "gap: 2rem;"
+            // // "flex-direction: row"
+            // "text-align: center;"
+            // "flex-wrap: wrap;"
+            // // "align-content: space-around;"
+
+            // "align-content: start;"
+            // "justify-content: flex-start;"
+            // "}"
+
+            ".box {"
+            "display: flex;"
+            "gap: 1rem;"
+            "text-align: center;"
+            "flex-wrap: wrap;"
+            "align-content: flex-start;"
+            "justify-content:flex-start;"
+            "margin:1rem;"
+            "}"
+            ".files {"
+            "display: flex;"
+            "flex-direction: column;"
+            "padding: 1rem 2.1rem;"
+            "max-width: 5rem;"
+            "min-width: 5rem;"
+            "background-color: #FFFFFF;"
+            "border-radius: 10%%;"
+            "font-family:sans-serif;"
+            "cursor: pointer;"
+            "transition: all ease-in-out 0.3s;"
+            "}"
+            ".heading {"
+            "font-size: 3rem;"
+            ""
+            "}"
+            ".files:hover {"
+            "/* background-color: #00BFFF; */"
+            "box-shadow: 2px 2px 8px 4px #afaaaa;"
+            ""
+            "}"
+            "a,a:active {"
+            "text-decoration: none;"
+            "color: black;"
+            "}"
+            "body {"
+            "background-color: #F0f0f0; "
+            "}"
+            "</style>"
+            "</head>");
+        string_buffer_write(web_page,
+            "<body>"
+            "<div class=\"box\">");
+
+        dir = opendir(".");
+
+        if (dir != NULL) {
+            while ((dir_pointer = readdir(dir)) != NULL) {
+
+                if (dir_pointer->d_type == DT_DIR) {
+                    string_buffer_write(web_page,
+                        "<div class=\"files\">"
+                        "<a href=\"%s\">"
+                        "<div class = \"heading\"><b>D</b></div> "
+                        "<div>%s</div>"
+                        "</a>"
+                        "</div>",
+                        dir_pointer->d_name,dir_pointer->d_name);
+                    // "<div>"
+                    // "<h1><b>D</b></h1>"
+                    // "<a><p>%s</p></a>"
+                    // "</div>",
+                    // dir_pointer->d_name);
+                } else {
+                    string_buffer_write(web_page,
+                        "<div class=\"files\">"
+                        "<a href=\"%s\">"
+                        "<div class = \"heading\"><b>F</b></div> "
+                        "<div>%s</div>"
+                        "</a>"
+                        "</div>",
+                        dir_pointer->d_name,dir_pointer->d_name);
+                        // "<div>"
+                        // "<h1><b>F</b></h1>"
+                        // "<a><p>%s</p></a>"
+                        // "</div>",
+                        // dir_pointer->d_name);
+                }
+            }
+        }
+
+        string_buffer_write(web_page,
+            "</div>"
+            "</body>"
+            "</html>");
+
+        // snprintf(respbuffer, buffer_size, msg, client_count);
         // send:
-        byte_status = send(client_socket, respbuffer, strlen(respbuffer), 0);
+        byte_status = send(client_socket, web_page->str, web_page->size, 0);
         byte_status != -1 || DIE("send error");
 
         client_count = client_count + 1;
         shutdown(client_socket, SHUT_RDWR);
         close(client_socket) == 0 || DIE("close error");
+        string_buffer_clear(web_page);
     }
     close(serverSocket);
     return 0;
@@ -101,16 +209,17 @@ int main()
 
 /**
  * @brief Get the route object
- * 
- * @param reqbuffer 
- * @param reqbuffersize 
- * @param route_string 
- * @param route_size 
+ *
+ * @param reqbuffer
+ * @param reqbuffersize
+ * @param route_string
+ * @param route_size
  */
-void get_route(char *reqbuffer, int reqbuffersize, char *route_string, int route_size) {
-    char *method = strtok(reqbuffer, " ");
-    char *route = strtok(NULL, " ");
-    char *version = strtok(NULL, "\r");
+void get_route(char* reqbuffer, int reqbuffersize, char* route_string, int route_size)
+{
+    char* method = strtok(reqbuffer, " ");
+    char* route = strtok(NULL, " ");
+    char* version = strtok(NULL, "\r");
     strncpy(route_string, route, route_size);
 }
 
@@ -121,7 +230,7 @@ char *strreplace(const char *src, const char *pattern, const char *replacement) 
     int repl_len = strlen(replacement);
     int pattern_idx = 0;
     for(int i = 0; i < src_len; i ++) {
-        
+
     }
 }
 */

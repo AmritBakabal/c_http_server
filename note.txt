@@ -31,3 +31,5 @@ VIM text-actions
     
     ci ' " [ { ( )}]
     ci <
+
+-> ctrl+shift+i = format document (line haru takka milauxa)
