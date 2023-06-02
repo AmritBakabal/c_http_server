@@ -1,9 +1,10 @@
 #ifndef _STRINGBUFFER_H
+#include <stdint.h>
 #define _STRINGBUFFER_H
 #define FMT(X, Y, ...) string_buffer_write(X, Y, __VA_ARGS__); 
 
 struct string_buffer {
-  char *str;
+  uint8_t *str;
   int size;
   int capacity;
 };
@@ -12,9 +13,9 @@ struct string_buffer {
  * @brief doubles the string_buffer size
  * 
  * @param buffer 
- * @return char * 
+ * @return uint8_t * 
  */
-char *string_buffer_expand(struct string_buffer *buffer); 
+uint8_t *string_buffer_expand(struct string_buffer *buffer); 
 
 /**
  * @brief Writes the given formatted string to the string_buffer

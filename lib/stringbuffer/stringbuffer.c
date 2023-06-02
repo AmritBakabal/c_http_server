@@ -4,15 +4,16 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
+#include <stdint.h>
 
 /**
  * @brief doubles the string_buffer size
  * 
  * @param buffer 
- * @return char * 
+ * @return uint8_t * 
  */
-char *string_buffer_expand(struct string_buffer *buffer) {
-  buffer->str = realloc(buffer->str, 2 * buffer->capacity * sizeof(char));
+uint8_t *string_buffer_expand(struct string_buffer *buffer) {
+  buffer->str = realloc(buffer->str, 2 * buffer->capacity * sizeof(uint8_t));
   if(buffer->str != NULL)  {
     // realloc success; update capacity
     buffer->capacity *= 2;
@@ -68,7 +69,7 @@ struct string_buffer *string_buffer_create() {
   assert(buffer != NULL && "error while allocating buffer");
   buffer->capacity = 65536;
   buffer->size = 0;
-  buffer->str = (char *)malloc(buffer->capacity * sizeof(char));
+  buffer->str = (uint8_t *)malloc(buffer->capacity * sizeof(uint8_t));
   assert(buffer->str != NULL && "error while allocating buffer's str");
   buffer->str[0] = '\0';
   return buffer;

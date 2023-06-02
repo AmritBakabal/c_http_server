@@ -3,3 +3,9 @@
 	- if user clicks on file, download the file
 	- else if user clicks on directory, open that directory
 	
+	
+	
+	1) for short words allow max 3 lines and use ... for the rest
+	2) for long words
+		*) use hypehenation
+		*) use ... after some text
