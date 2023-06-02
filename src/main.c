@@ -96,98 +96,107 @@ int main()
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />"
             "<title>Document</title>"
             "<style>"
-            // ".box {"
-            // "display: flex;"
-            // "gap: 2rem;"
-            // // "flex-direction: row"
-            // "text-align: center;"
-            // "flex-wrap: wrap;"
-            // // "align-content: space-around;"
-
-            // "align-content: start;"
-            // "justify-content: flex-start;"
-            // "}"
-
             ".box {"
             "display: flex;"
             "gap: 1rem;"
             "text-align: center;"
             "flex-wrap: wrap;"
             "align-content: flex-start;"
-            "justify-content:flex-start;"
-            "margin:1rem;"
+            "justify-content: flex-start;"
+            "margin: 1rem;"
             "}"
             ".files {"
             "display: flex;"
+            "/* align-items: center; */"
             "flex-direction: column;"
             "padding: 1rem 2.1rem;"
             "max-width: 5rem;"
             "min-width: 5rem;"
-            "background-color: #FFFFFF;"
+            "background-color: #ffffff;"
             "border-radius: 10%%;"
-            "font-family:sans-serif;"
+            "font-family: sans-serif;"
             "cursor: pointer;"
             "transition: all ease-in-out 0.3s;"
+            "position: relative;"
             "}"
             ".heading {"
             "font-size: 3rem;"
-            ""
             "}"
             ".files:hover {"
             "/* background-color: #00BFFF; */"
             "box-shadow: 2px 2px 8px 4px #afaaaa;"
-            ""
             "}"
             "a,a:active {"
             "text-decoration: none;"
             "color: black;"
             "}"
             "body {"
-            "background-color: #F0f0f0; "
+            "background-color: #f0f0f0;"
+            "}"
+            ".file_name {"
+            "text-align: center;"
+            "overflow: hidden;"
+            "white-space: nowrap;"
+            "text-overflow: ellipsis;"
+            "}"
+            ".file_name::after {"
+            "content: attr(data-fileName);"
+            "position: absolute;"
+            "bottom: 0px;"
+            "left: 0;"
+            "background-color: #000;"
+            "color: #fff;"
+            "padding: 5px;"
+            "border-radius: 4px;"
+            "opacity: 0;"
+            "transition: opacity 0.3s;"
+            "z-index: 1;"
+            "}"
+            ".file_name:hover::after {"
+            "opacity: 1;"
             "}"
             "</style>"
             "</head>");
+
         string_buffer_write(web_page,
             "<body>"
             "<div class=\"box\">");
-
         dir = opendir(".");
-
         if (dir != NULL) {
             while ((dir_pointer = readdir(dir)) != NULL) {
-
                 if (dir_pointer->d_type == DT_DIR) {
+
+                    if (dir_pointer->d_name[0] != '.') {
+                        string_buffer_write(web_page,
+                            "<div class=\"files\">"
+                            "<a href=\"%1$s\">"
+                            "<div class=\"heading\"><b>D</b></div>"
+                            "<div class=\"file_name\" data-fileName=\"%1$s\">"
+                            "%1$s"
+                            "</div>"
+                            "</a>"
+                            "</div>",
+                            dir_pointer->d_name);
+                    }
+                }
+            }
+            rewinddir(dir); //points to beggining of directory.
+            while ((dir_pointer = readdir(dir)) != NULL) {
+                if (dir_pointer->d_type == DT_REG && dir_pointer->d_name[0] != '.') {
                     string_buffer_write(web_page,
                         "<div class=\"files\">"
-                        "<a href=\"%s\">"
-                        "<div class = \"heading\"><b>D</b></div> "
-                        "<div>%s</div>"
+                        "<a href=\"%1$s\">"
+                        "<div class=\"heading\"><b>F</b></div>"
+                        "<div class=\"file_name\" data-fileName=\"%1$s\">"
+                        "%1$s"
+                        "</div>"
                         "</a>"
                         "</div>",
-                        dir_pointer->d_name,dir_pointer->d_name);
-                    // "<div>"
-                    // "<h1><b>D</b></h1>"
-                    // "<a><p>%s</p></a>"
-                    // "</div>",
-                    // dir_pointer->d_name);
-                } else {
-                    string_buffer_write(web_page,
-                        "<div class=\"files\">"
-                        "<a href=\"%s\">"
-                        "<div class = \"heading\"><b>F</b></div> "
-                        "<div>%s</div>"
-                        "</a>"
-                        "</div>",
-                        dir_pointer->d_name,dir_pointer->d_name);
-                        // "<div>"
-                        // "<h1><b>F</b></h1>"
-                        // "<a><p>%s</p></a>"
-                        // "</div>",
-                        // dir_pointer->d_name);
+                        dir_pointer->d_name);
                 }
             }
         }
-
+        closedir(dir);
         string_buffer_write(web_page,
             "</div>"
             "</body>"

@@ -1,0 +1,6 @@
+hover -> pointer (background color :light blue)
+click -> folder open
+file click -> downlaod.
+ 
+ordering -> 
+folder with alphabetical order 

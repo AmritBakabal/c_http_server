@@ -12,39 +12,58 @@
         text-align: center;
         flex-wrap: wrap;
         align-content: flex-start;
-        justify-content:flex-start;
-        margin:1rem;
+        justify-content: flex-start;
+        margin: 1rem;
       }
       .files {
         display: flex;
+        /* align-items: center; */
         flex-direction: column;
         padding: 1rem 2.1rem;
         max-width: 5rem;
         min-width: 5rem;
-        background-color: #FFFFFF;
+        background-color: #ffffff;
         border-radius: 10%;
-        font-family:sans-serif;
+        font-family: sans-serif;
         cursor: pointer;
         transition: all ease-in-out 0.3s;
+        position: relative;
       }
       .heading {
         font-size: 3rem;
-
       }
       .files:hover {
         /* background-color: #00BFFF; */
         box-shadow: 2px 2px 8px 4px #afaaaa;
-
       }
       a,a:active {
         text-decoration: none;
         color: black;
       }
       body {
-        background-color: #F0f0f0; 
+        background-color: #f0f0f0;
       }
-      .title{
-        max-width: 100%;
+      .file_name {
+        text-align: center;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .file_name::after {
+        content: attr(data-fileName);
+        position: absolute;
+        bottom: 0px;
+        left: 0;
+        background-color: #000;
+        color: #fff;
+        padding: 5px;
+        border-radius: 4px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 1;
+      }
+      .file_name:hover::after {
+        opacity: 1;
       }
     </style>
   </head>
@@ -53,70 +72,82 @@
     <div class="box">
       <div class="files">
         <a href="">
-        <div class = "heading"><b>A</b></div> 
-        <div>requirement.txt</div>
+          <div class="heading"><b>A</b></div>
+          <div class="file_name" data-fileName="requirement.txt">
+            requirement.txt
+          </div>
         </a>
       </div>
       <div class="files">
         <a href="">
-        <div class = "heading"><b>A</b></div> 
-        <div class="title">Appleisbijay'slove</div>
+          <div class="heading"><b>A</b></div>
+          <div class="file_name" data-fileName="Appleisbijay'slove">Appleisbijay'slove</div>
         </a>
       </div>
       <div class="files">
         <a href="">
-        <div class = "heading"><b>A</b></div> 
-        <div>love</div>
+          <div class="heading"><b>A</b></div>
+          <div class="file_name">love</div>
         </a>
       </div>
       <div class="files">
         <a href="">
-        <div class = "heading"><b>A</b></div> 
-        <div>bijay's love</div>
+          <div class="heading"><b>A</b></div>
+          <div class="file_name">bijay's love</div>
         </a>
       </div>
       <div class="files">
         <a href="">
-        <div class = "heading"><b>A</b></div> 
-        <div>Apple is bijay's love</div>
+          <div class="heading"><b>A</b></div>
+          <div class="file_name">Apple is bijay's love</div>
         </a>
       </div>
       <div class="files">
         <a href="">
-        <div class = "heading"><b>A</b></div> 
-        <div>1s love</div>
+          <div class="heading"><b>A</b></div>
+          <div class="file_name">1s love</div>
         </a>
       </div>
       <div class="files">
         <a href="">
-        <div class = "heading"><b>A</b></div> 
-        <div>This is a very long filename.</div>
+          <div class="heading"><b>A</b></div>
+          <div class="file_name" data-fileName="This is a very very long filename">This is a very long filename.</div>
         </a>
       </div>
       <div class="files">
         <a href="">
-        <div class = "heading"><b>A</b></div> 
-        <div>Apple is bijay's love</div>
+          <div class="heading"><b>A</b></div>
+          <div class="file_name">Apple is bijay's love</div>
         </a>
       </div>
       <div class="files">
         <a href="">
-        <div class = "heading"><b>A</b></div> 
-        <div>Apple is bijay's love</div>
+          <div class="heading"><b>A</b></div>
+          <div class="file_name">Apple is bijay's love</div>
         </a>
       </div>
       <div class="files">
         <a href="">
-        <div class = "heading"><b>A</b></div> 
-        <div>Apple is bijay's love</div>
+          <div class="heading"><b>A</b></div>
+          <div class="file_name">Apple is bijay's love</div>
         </a>
       </div>
       <div class="files">
         <a href="">
-        <div class = "heading"><b>A</b></div> 
-        <div>Apple is bijay's love</div>
+          <div class="heading"><b>A</b></div>
+          <div class="file_name">Apple is bijay's love</div>
         </a>
       </div>
     </div>
+    <!-- <script>
+      const classSelector = document.querySelectorAll(".file_name");
+      for (let i = 0; i < classSelector.length; i++) {
+        let text = classSelector[i].innerText;
+        if(text.length > 10) {
+          text = text.substr(0, 10) + "...";
+        }
+        classSelector[i].innerText = text;
+      }
+    </script> -->
   </body>
 </html>
