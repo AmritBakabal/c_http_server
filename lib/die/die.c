@@ -36,7 +36,8 @@ int log_warn(const char *filename, int line, const char *msg, ...) {
 int log_info(const char *filename, int line, const char *msg, ...) {
   va_list args;
   va_start(args, msg);
-  fprintf(stderr, "\033[1;32mINFO:\033[0m[%s:%d] %s: ", filename, line, strerror(errno));
+  //fprintf(stderr, "\033[1;32mINFO:\033[0m[%s:%d] %s: ", filename, line, strerror(errno));
+  fprintf(stderr, "\033[1;32mINFO:\033[0m[%s:%d]: ", filename, line);
   vfprintf(stderr, msg, args);
   fprintf(stderr, "\n");
   va_end(args);
