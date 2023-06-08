@@ -105,7 +105,6 @@ int main()
     return 0;
 }
 
-
 /**
  * @brief Get the route object
  *
@@ -373,6 +372,7 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
                                 has_extension = 1;
                                 break;
                             }
+
                             // printf("%c", dir_pointer->d_name[i]);
                             // update extension[] here
                             extension[k] = dir_pointer->d_name[i];
@@ -403,24 +403,26 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
                                 strcpy(icon_type, "image");
                             } else if (strcmp(extension, "4pm") == 0) {
                                 strcpy(icon_type, "video");
+                            } else if (strcmp(extension, "vkm") == 0) {
+                                strcpy(icon_type, "video");
                             } else if (strcmp(extension, "3pm") == 0) {
                                 strcpy(icon_type, "audio");
                             } else {
                                 strcpy(icon_type, "binary");
                             }
                         }
-                            string_buffer_write(web_page,
-                                "<div class=\"files\">"
-                                "<a href=\"%2$s%3$s%1$s\">"
+                        string_buffer_write(web_page,
+                            "<div class=\"files\">"
+                            "<a href=\"%2$s%3$s%1$s\">"
 
-                                // "<div class=\"heading\"><b>D</b></div>"
-                                "<svg width=\"100\"><use href=\"#file-icon-%4$s\"/></svg>"
-                                "<div class=\"file_name\" data-fileName=\"%1$s\">"
-                                "%1$s"
-                                "</div>"
-                                "</a>"
-                                "</div>",
-                                dir_pointer->d_name, route_string, optional_slash,icon_type);
+                            // "<div class=\"heading\"><b>D</b></div>"
+                            "<svg width=\"100\"><use href=\"#file-icon-%4$s\"/></svg>"
+                            "<div class=\"file_name\" data-fileName=\"%1$s\">"
+                            "%1$s"
+                            "</div>"
+                            "</a>"
+                            "</div>",
+                            dir_pointer->d_name, route_string, optional_slash, icon_type);
                     }
                 }
             }
@@ -431,7 +433,6 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
                 "</html>");
         } else if (S_ISREG(stat_buf.st_mode)) {
             // handling regular file for download
-            // TODO
             string_buffer_write(web_page,
                 "HTTP/1.1 200 OK\r\n"
                 "Content-Type: application/octet-stream\r\n"
@@ -461,34 +462,30 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
                 "HTTP/1.1 404 NOT FOUND\r\n"
                 "\r\n");
         }
-    }
-    // else if(strcmp(route_string ,"/favicon.ico") == 0){
-    //     //TODO
-    //     char *favicon =
-    //     "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 448 "
-    //     "512\"><path d=\"M352 224c53 0 96-43 96-96s-43-96-96-96s-96 43-96 96c0 "
-    //     "4 .2 8 .7 11.9l-94.1 47C145.4 170.2 121.9 160 96 160c-53 0-96 43-96 "
-    //     "96s43 96 96 96c25.9 0 49.4-10.2 66.6-26.9l94.1 47c-.5 3.9-.7 7.8-.7 "
-    //     "11.9c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-25.9 0-49.4 10.2-66.6 "
-    //     "26.9l-94.1-47c.5-3.9 .7-7.8 .7-11.9s-.2-8-.7-11.9l94.1-47C302.6 213.8 "
-    //     "326.1 224 352 224z\" "
-    //     "style=\"fill:#dd4814;stroke-linejoin:round\"/></svg>";
+    } else if (strcmp(route_string, "/favicon.ico") == 0) {
+        char* favicon = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 448 "
+                        "512\"><path d=\"M352 224c53 0 96-43 96-96s-43-96-96-96s-96 43-96 96c0 "
+                        "4 .2 8 .7 11.9l-94.1 47C145.4 170.2 121.9 160 96 160c-53 0-96 43-96 "
+                        "96s43 96 96 96c25.9 0 49.4-10.2 66.6-26.9l94.1 47c-.5 3.9-.7 7.8-.7 "
+                        "11.9c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-25.9 0-49.4 10.2-66.6 "
+                        "26.9l-94.1-47c.5-3.9 .7-7.8 .7-11.9s-.2-8-.7-11.9l94.1-47C302.6 213.8 "
+                        "326.1 224 352 224z\" "
+                        "style=\"fill:#dd4814;stroke-linejoin:round\"/></svg>";
 
-    //     string_buffer_write(web_page, 
-    //     "HTTP/1.1 200 OK\r\n"
-    //     "Content-Type:  image/svg+xml\r\n"
-    //     "Content-Length: %d\r\n"
-    //     "Cache-Control: max-age=86400\r\n"
-    //     "\r\n"
-    //     "%s",
-    //     strlen(favicon), favicon);
-    // }
-    else {
+        string_buffer_write(web_page,
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type:  image/svg+xml\r\n"
+            "Content-Length: %d\r\n"
+            "Cache-Control: max-age=86400\r\n"
+            "\r\n"
+            "%s",
+            strlen(favicon), favicon);
+    } else {
         ERROR("couldn't get stat for %s", dir_path);
         string_buffer_write(web_page,
             "HTTP/1.1 404 NOT FOUND\r\n"
             "\r\n");
     }
-    
+
     return send_value;
 }
