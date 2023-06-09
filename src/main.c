@@ -1,6 +1,8 @@
 #define _XOPEN_SOURCE
 #include <dirent.h>
 #include <fcntl.h>
+#include <ifaddrs.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -41,6 +43,33 @@ int main() {
   char route_string[route_size];
   struct string_buffer *webpage = string_buffer_create();
   int reqbuffersize;
+
+  struct ifaddrs *ifaddrptr;
+  char ip_address[100];
+  uint32_t ip;
+  printf("Interfaces:\n");
+  if (getifaddrs(&ifaddrptr) == 0) {
+    for (; ifaddrptr != NULL; ifaddrptr = ifaddrptr->ifa_next) {
+      // AF_INET : only interested in IPv4 addresses
+      if (ifaddrptr->ifa_addr->sa_family == AF_INET) {
+        ip = ((struct sockaddr_in *)ifaddrptr->ifa_addr)->sin_addr.s_addr;
+        if (ip != 16777343) {
+          if (getnameinfo(ifaddrptr->ifa_addr, sizeof(struct sockaddr_in),
+                          ip_address, sizeof(ip_address), 0, 0,
+                          NI_NUMERICHOST) == 0) {
+            printf("%s\tIP: %s\n", ifaddrptr->ifa_name, ip_address);
+          } else {
+            ERROR("couldn't get ip address from sockaddr");
+          }
+        }
+      }
+    }
+    printf("\n");
+    freeifaddrs(ifaddrptr);
+  } else {
+    ERROR("couldn't list network interfaces");
+  }
+
   // server response protocol: rfc 7230
   // file descriptor for the new socket is returned
   serverSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -86,7 +115,7 @@ int main() {
     get_route(reqbuffer, RETVAL, route_string, route_size);
     url_decode(route_string);
     printf("ROUTE:%s\n", route_string);
-    
+
     int r_len = strlen(route_string);
 
     write_web_page_to(webpage, route_string);
@@ -131,7 +160,7 @@ void url_decode(char *url) {
   int is_hexadecimal;
   int current_index = 0;
   int current_char;
-  for (int i = 0; i < s; i ++) {
+  for (int i = 0; i < s; i++) {
     current_char = url[i];
     if (url[i] == '%' && i + 2 < s) {
       a = url[i + 1];
