@@ -18,7 +18,7 @@
 
 void get_route(char* reqbuffer, int reqbuffersize, char* route_string, int route_size);
 int write_web_page_to(struct string_buffer* web_page, char* route_string, int clientSocket);
-void url_decode(char *url);
+void url_decode(char* url);
 
 int main()
 {
@@ -85,7 +85,7 @@ int main()
         char* hex_space = "%20";
         int idx = 0;
         get_route(reqbuffer, RETVAL, route_string, route_size);
-        //passing function which handles %20:   
+        // passing function which handles %20:
         url_decode(route_string);
         printf("ROUTE:%s\n", route_string);
         int r_len = strlen(route_string);
@@ -93,7 +93,7 @@ int main()
         // function call for webPage
         int sendFile_value = write_web_page_to(web_page, route_string, client_socket);
         // snprintf(respbuffer, buffer_size, msg, client_count);
-        //checking %20                
+        // checking %20
         // send:
 
         if (sendFile_value == 0) {
@@ -140,6 +140,8 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
 {
     int send_value = 0;
     char dir_path[1024];
+    char show_path_str[1024];
+    strcpy(show_path_str, route_string);
     snprintf(dir_path, 1024, ".%s", route_string); //.-> used for security purpose so that it can't go to root of server.
     struct stat stat_buf; // man 2 stat
     int stat_status = stat(dir_path, &stat_buf);
@@ -148,7 +150,8 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
             string_buffer_write(web_page, "HTTP/1.1 200 OK\r\n"
                                           "Content-Type: text/html\r\n"
                                           "\r\n");
-            string_buffer_write(web_page,
+            string_buffer_write(
+                web_page,
                 // s/(^|$)/"/g
                 "<!DOCTYPE html>"
                 "<html lang=\"en\">"
@@ -322,8 +325,48 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
                 "/>"
                 "</symbol>"
                 "</defs>"
-                "</svg>"
-                "<div class=\"box\">");
+                "</svg>");
+
+            // TODO
+            //  for (int i = 0; i <= show_path_str; i++) {
+            INFO("strtok(%s)", show_path_str);
+            string_buffer_write(web_page,
+                "<a href=\"/\">home</a>");
+
+            char* firstDirectory = strtok(show_path_str, "/");
+            if (firstDirectory != NULL) {
+                INFO("dir path: %s", firstDirectory);
+
+                string_buffer_write(web_page,
+                    ">> <a href=\"/%1$s\">%1$s</a>",
+                    firstDirectory);
+
+                char runningRoute[1024];
+                // snprintf(runningRoute, 1024,"/%s", firstDirectory);
+                runningRoute[0] = '/';
+                runningRoute[1] = '\0';
+                strcat(runningRoute, firstDirectory);
+
+                INFO("CAME HERE");
+                while (1) {
+                    firstDirectory = strtok(NULL, "/");
+                    if (firstDirectory != NULL) {
+
+                        strcat(runningRoute, "/");
+                        strcat(runningRoute, firstDirectory);
+
+                        string_buffer_write(web_page,
+                            ">> <a href=\"%1$s\">%2$s</a>",
+                            runningRoute, firstDirectory);
+                        INFO("dir path: %s", firstDirectory);
+                    } else {
+                        break;
+                    }
+                }
+            }
+            // }
+
+            string_buffer_write(web_page, "<div class=\"box\">");
 
             DIR* dir = opendir(dir_path);
             fprintf(stderr, "route_string: %s\n", route_string);
@@ -383,14 +426,14 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
                             k++;
                         }
                         extension[k] = '\0'; // string must always end with null byte
-                        //using swaping for extension to reverse again:
+                        // using swaping for extension to reverse again:
                         int ext_length = strlen(extension);
                         char temp;
-                        for (int i = 0; i < ext_length/2; i++){
+                        for (int i = 0; i < ext_length / 2; i++) {
                             temp = extension[i];
-                            extension[i] = extension[ext_length-1-i];
-                            extension[ext_length-1-i] = temp;
-                        } 
+                            extension[i] = extension[ext_length - 1 - i];
+                            extension[ext_length - 1 - i] = temp;
+                        }
                         // INFO("extension:%s has_extension: %d", extension, has_extension);
                         if (has_extension == 0) {
                             strcpy(icon_type, "binary");
@@ -507,51 +550,52 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
  * ; conversion happens in-place
  * @param url
  */
-void url_decode(char *url) {
-  int s = strlen(url);
-  char ch;
-  char a, b;
-  int decoded_byte = 0;
-  int is_hexadecimal;
-  int current_index = 0;
-  int current_char;
-  for (int i = 0; i < s; i ++) {
-    current_char = url[i];
-    if (url[i] == '%' && i + 2 < s) {
-      a = url[i + 1];
-      b = url[i + 2];
-      is_hexadecimal = 1;
-      // make sure `a` and `b` are both hexadecimal digits
-      if (a >= '0' && a <= '9') {
-        decoded_byte = a - '0';
-      } else if (a >= 'A' && a <= 'F') {
-        decoded_byte = a - 'A' + 10;
-      } else if (a >= 'a' && a <= 'f') {
-        decoded_byte = a - 'a' + 10;
-      } else {
-        // a is not a hexadecimal digit
-        is_hexadecimal = 0;
-      }
-      if (is_hexadecimal == 1) {
-        if (b >= '0' && b <= '9') {
-          decoded_byte = 16 * decoded_byte + b - '0';
-        } else if (b >= 'A' && b <= 'F') {
-          decoded_byte = 16 * decoded_byte + b - 'A' + 10;
-        } else if (b >= 'a' && b <= 'f') {
-          decoded_byte = 16 * decoded_byte + b - 'a' + 10;
-        } else {
-          is_hexadecimal = 0;
+void url_decode(char* url)
+{
+    int s = strlen(url);
+    char ch;
+    char a, b;
+    int decoded_byte = 0;
+    int is_hexadecimal;
+    int current_index = 0;
+    int current_char;
+    for (int i = 0; i < s; i++) {
+        current_char = url[i];
+        if (url[i] == '%' && i + 2 < s) {
+            a = url[i + 1];
+            b = url[i + 2];
+            is_hexadecimal = 1;
+            // make sure `a` and `b` are both hexadecimal digits
+            if (a >= '0' && a <= '9') {
+                decoded_byte = a - '0';
+            } else if (a >= 'A' && a <= 'F') {
+                decoded_byte = a - 'A' + 10;
+            } else if (a >= 'a' && a <= 'f') {
+                decoded_byte = a - 'a' + 10;
+            } else {
+                // a is not a hexadecimal digit
+                is_hexadecimal = 0;
+            }
+            if (is_hexadecimal == 1) {
+                if (b >= '0' && b <= '9') {
+                    decoded_byte = 16 * decoded_byte + b - '0';
+                } else if (b >= 'A' && b <= 'F') {
+                    decoded_byte = 16 * decoded_byte + b - 'A' + 10;
+                } else if (b >= 'a' && b <= 'f') {
+                    decoded_byte = 16 * decoded_byte + b - 'a' + 10;
+                } else {
+                    is_hexadecimal = 0;
+                }
+            }
+            if (is_hexadecimal == 1) {
+                // found a %xx encoding;
+                // replace url[i] with `decoded_byte`
+                // INFO("decoded_byte = %d", decoded_byte);
+                current_char = decoded_byte;
+                i += 2;
+            }
         }
-      }
-      if (is_hexadecimal == 1) {
-        // found a %xx encoding;
-        // replace url[i] with `decoded_byte`
-        // INFO("decoded_byte = %d", decoded_byte);
-        current_char = decoded_byte;
-        i += 2;
-      }
+        url[current_index++] = current_char;
     }
-    url[current_index++] = current_char;
-  }
-  url[current_index] = '\0';
+    url[current_index] = '\0';
 }
