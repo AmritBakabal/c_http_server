@@ -18,6 +18,7 @@
 
 void get_route(char* reqbuffer, int reqbuffersize, char* route_string, int route_size);
 int write_web_page_to(struct string_buffer* web_page, char* route_string, int clientSocket);
+void url_decode(char *url);
 
 int main()
 {
@@ -84,12 +85,15 @@ int main()
         char* hex_space = "%20";
         int idx = 0;
         get_route(reqbuffer, RETVAL, route_string, route_size);
+        //passing function which handles %20:   
+        url_decode(route_string);
         printf("ROUTE:%s\n", route_string);
         int r_len = strlen(route_string);
 
         // function call for webPage
         int sendFile_value = write_web_page_to(web_page, route_string, client_socket);
         // snprintf(respbuffer, buffer_size, msg, client_count);
+        //checking %20                
         // send:
 
         if (sendFile_value == 0) {
@@ -379,6 +383,15 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
                             k++;
                         }
                         extension[k] = '\0'; // string must always end with null byte
+                        //using swaping for extension to reverse again:
+                        int ext_length = strlen(extension);
+                        char temp;
+                        for (int i = 0; i < ext_length/2; i++){
+                            temp = extension[i];
+                            extension[i] = extension[ext_length-1-i];
+                            extension[ext_length-1-i] = temp;
+                        } 
+                        // INFO("extension:%s has_extension: %d", extension, has_extension);
                         if (has_extension == 0) {
                             strcpy(icon_type, "binary");
                         } else {
@@ -395,17 +408,17 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
                                 // }
                                 // icon_type[i] = '\0';
 
-                            } else if (strcmp(extension, "gpj") == 0) {
+                            } else if (strcmp(extension, "jpg") == 0) {
                                 strcpy(icon_type, "image");
-                            } else if (strcmp(extension, "gepj") == 0) {
+                            } else if (strcmp(extension, "jpeg") == 0) {
                                 strcpy(icon_type, "image");
-                            } else if (strcmp(extension, "gnp") == 0) {
+                            } else if (strcmp(extension, "png") == 0) {
                                 strcpy(icon_type, "image");
-                            } else if (strcmp(extension, "4pm") == 0) {
+                            } else if (strcmp(extension, "mp4") == 0) {
                                 strcpy(icon_type, "video");
-                            } else if (strcmp(extension, "vkm") == 0) {
+                            } else if (strcmp(extension, "mkv") == 0) {
                                 strcpy(icon_type, "video");
-                            } else if (strcmp(extension, "3pm") == 0) {
+                            } else if (strcmp(extension, "mp3") == 0) {
                                 strcpy(icon_type, "audio");
                             } else {
                                 strcpy(icon_type, "binary");
@@ -488,4 +501,57 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
     }
 
     return send_value;
+}
+/**
+ * @brief Convert %xx to appropriate byte in given url
+ * ; conversion happens in-place
+ * @param url
+ */
+void url_decode(char *url) {
+  int s = strlen(url);
+  char ch;
+  char a, b;
+  int decoded_byte = 0;
+  int is_hexadecimal;
+  int current_index = 0;
+  int current_char;
+  for (int i = 0; i < s; i ++) {
+    current_char = url[i];
+    if (url[i] == '%' && i + 2 < s) {
+      a = url[i + 1];
+      b = url[i + 2];
+      is_hexadecimal = 1;
+      // make sure `a` and `b` are both hexadecimal digits
+      if (a >= '0' && a <= '9') {
+        decoded_byte = a - '0';
+      } else if (a >= 'A' && a <= 'F') {
+        decoded_byte = a - 'A' + 10;
+      } else if (a >= 'a' && a <= 'f') {
+        decoded_byte = a - 'a' + 10;
+      } else {
+        // a is not a hexadecimal digit
+        is_hexadecimal = 0;
+      }
+      if (is_hexadecimal == 1) {
+        if (b >= '0' && b <= '9') {
+          decoded_byte = 16 * decoded_byte + b - '0';
+        } else if (b >= 'A' && b <= 'F') {
+          decoded_byte = 16 * decoded_byte + b - 'A' + 10;
+        } else if (b >= 'a' && b <= 'f') {
+          decoded_byte = 16 * decoded_byte + b - 'a' + 10;
+        } else {
+          is_hexadecimal = 0;
+        }
+      }
+      if (is_hexadecimal == 1) {
+        // found a %xx encoding;
+        // replace url[i] with `decoded_byte`
+        // INFO("decoded_byte = %d", decoded_byte);
+        current_char = decoded_byte;
+        i += 2;
+      }
+    }
+    url[current_index++] = current_char;
+  }
+  url[current_index] = '\0';
 }

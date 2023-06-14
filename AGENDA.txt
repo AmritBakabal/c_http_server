@@ -1,5 +1,0 @@
-*) create a local file server
-	- list all contents of current directory
-	- if user clicks on file, download the file
-	- else if user clicks on directory, open that directory
-	
