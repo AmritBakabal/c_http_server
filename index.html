@@ -65,13 +65,27 @@
       .file_name:hover::after {
         opacity: 1;
       }
+      .bar{
+        width: 100%;
+        background-color:  #dd4814;
+        padding: 0.5rem;
+        margin-left: 1rem;
+        font-size: 1.3rem;
+      }
+      .bar-hover:hover{
+        color: #f0f0f0 ;
+      }
+      .arrow-size{
+        display: inline;
+      }
     </style>
   </head>
-
   <body style="height: 100vh">
-    <a href="include">include</a> >
-    <a href="include/files">files</a> >
-    <a href="include/files/main">main.c</a>
+    <div class="bar">
+          <div class="arrow-size">&#10148;</div><a  class="bar-hover" href="include">include</a> <div class="arrow-size">&#10148;</div>
+          <a class="bar-hover" href="include/files">files</a> <div class="arrow-size">&#10148;</div>
+          <a class="bar-hover" href="include/files/main">main.c</a>
+    </div>
     <div class="box">
       <div class="files">
         <a href="">

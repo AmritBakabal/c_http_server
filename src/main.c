@@ -161,6 +161,10 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
                 "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />"
                 "<title>File Share</title>"
                 "<style>"
+                "*{"
+                "margin:0;"
+                "padding:0;"
+                "}"
                 ".box {"
                 "display: flex;"
                 "gap: 1rem;"
@@ -220,6 +224,18 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
                 "}"
                 ".file_name:hover::after {"
                 "opacity: 1;"
+                "}"
+                ".bar{"
+                "width: 100%%;"
+                "background-color:  #dd4814;"
+                "padding: 0.5rem;"
+                "font-size: 1.3rem;"
+                "}"
+                ".bar-hover:hover{"
+                "color: #f0f0f0 ;"
+                "}"
+                ".arrow-size{"
+                "display: inline;"
                 "}"
                 "</style>"
                 "</head>"
@@ -331,14 +347,18 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
             //  for (int i = 0; i <= show_path_str; i++) {
             INFO("strtok(%s)", show_path_str);
             string_buffer_write(web_page,
-                "<a href=\"/\">home</a>");
+
+                "<div class=\"bar\">"
+                "<div class=\"arrow-size\">&#10148; </div><a  class=\"bar-hover\" href=\"/\">home</a>" 
+                // "<a href=\"/\">home</a>"
+            );
 
             char* firstDirectory = strtok(show_path_str, "/");
             if (firstDirectory != NULL) {
                 INFO("dir path: %s", firstDirectory);
 
                 string_buffer_write(web_page,
-                    ">> <a href=\"/%1$s\">%1$s</a>",
+                    "<div class=\"arrow-size\"> &#10148; </div><a class=\"bar-hover\" href=\"/%1$s\">%1$s</a>",
                     firstDirectory);
 
                 char runningRoute[1024];
@@ -356,7 +376,8 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
                         strcat(runningRoute, firstDirectory);
 
                         string_buffer_write(web_page,
-                            ">> <a href=\"%1$s\">%2$s</a>",
+
+                            "<div class=\"arrow-size\"> &#10148; </div><a class=\"bar-hover\" href=\"%1$s\">%2$s</a>", 
                             runningRoute, firstDirectory);
                         INFO("dir path: %s", firstDirectory);
                     } else {
@@ -366,7 +387,9 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
             }
             // }
 
-            string_buffer_write(web_page, "<div class=\"box\">");
+            string_buffer_write(web_page,
+                "</div>"
+                "<div class=\"box\">");
 
             DIR* dir = opendir(dir_path);
             fprintf(stderr, "route_string: %s\n", route_string);
