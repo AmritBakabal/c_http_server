@@ -1,6 +1,7 @@
 #define _XOPEN_SOURCE
 #include <dirent.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <sys/sendfile.h>
 #include <sys/stat.h>
@@ -17,8 +18,14 @@
 #include "../include/stringbuffer/stringbuffer.h"
 
 void get_route(char* reqbuffer, int reqbuffersize, char* route_string, int route_size);
-int write_web_page_to(struct string_buffer* web_page, char* route_string, int clientSocket);
+// int write_web_page_to(struct string_buffer* web_page, char* route_string, int clientSocket);
+void* write_web_page_to(void* arg);
 void url_decode(char* url);
+
+struct client_info {
+    char route_string[1024];
+    int clientSocket;
+};
 
 int main()
 {
@@ -71,10 +78,13 @@ int main()
     int client_socket;
     int client_count = 0;
     ssize_t byte_status;
+    pthread_t thread_id;
 
     while (1) {
+        INFO("Waiting for new client...");
         client_socket = accept(serverSocket, NULL, NULL);
         client_socket != -1 || DIE("accept error");
+        INFO("Currently serving a client...");
 
         // read client request
         RETVAL = recv(client_socket, reqbuffer, 1024, 0);
@@ -90,20 +100,19 @@ int main()
         printf("ROUTE:%s\n", route_string);
         int r_len = strlen(route_string);
 
+        // TODO -> handling client with thread (pthread->multi client)
+        struct client_info client_info;
+        client_info.clientSocket = client_socket;
+        // client_info.route_string = route_string; global ma vayera replace huna sakxa route_string
+        strncpy(client_info.route_string, route_string, 1024);
+
+        int pthread_retval = pthread_create(thread_id, NULL, write_web_page_to, (void*)&client_info) == 0 || ERROR("Couldn't create a thread!!");
+
         // function call for webPage
-        int sendFile_value = write_web_page_to(web_page, route_string, client_socket);
+        // int sendFile_value = write_web_page_to(web_page, route_string, client_socket);
         // snprintf(respbuffer, buffer_size, msg, client_count);
         // checking %20
         // send:
-
-        if (sendFile_value == 0) {
-            byte_status = send(client_socket, web_page->str, web_page->size, 0);
-            byte_status != -1 || DIE("send error");
-        }
-        client_count = client_count + 1;
-        shutdown(client_socket, SHUT_RDWR);
-        close(client_socket) == 0 || DIE("close error");
-        string_buffer_clear(web_page);
     }
     close(serverSocket);
     return 0;
@@ -136,8 +145,13 @@ char *strreplace(const char *src, const char *pattern, const char *replacement) 
     }
 }
 */
-int write_web_page_to(struct string_buffer* web_page, char* route_string, int clientSocket)
+// void *write_web_page_to(struct string_buffer* web_page, char* route_string, int clientSocket)
+void* write_web_page_to(void* arg)
 {
+    struct client_info* client_info = (struct client_info*)arg;
+    char* route_string = client_info->route_string;
+    struct string_buffer* web_page = string_buffer_create();
+    int clientSocket = client_info->clientSocket;
     int send_value = 0;
     char dir_path[1024];
     char show_path_str[1024];
@@ -349,7 +363,7 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
             string_buffer_write(web_page,
 
                 "<div class=\"bar\">"
-                "<div class=\"arrow-size\">&#10148; </div><a  class=\"bar-hover\" href=\"/\">home</a>" 
+                "<div class=\"arrow-size\">&#10148; </div><a  class=\"bar-hover\" href=\"/\">home</a>"
                 // "<a href=\"/\">home</a>"
             );
 
@@ -377,7 +391,7 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
 
                         string_buffer_write(web_page,
 
-                            "<div class=\"arrow-size\"> &#10148; </div><a class=\"bar-hover\" href=\"%1$s\">%2$s</a>", 
+                            "<div class=\"arrow-size\"> &#10148; </div><a class=\"bar-hover\" href=\"%1$s\">%2$s</a>",
                             runningRoute, firstDirectory);
                         INFO("dir path: %s", firstDirectory);
                     } else {
@@ -527,7 +541,7 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
             if (open_fd >= 0) {
                 ssize_t no_of_bytes = sendfile(clientSocket, open_fd, 0, stat_buf.st_size);
                 if (no_of_bytes < 0) {
-                    printf("error at sendfile!!!");
+                    ERROR("error at sendfile!!!");
                 } else {
                     send_value = 1;
                 }
@@ -566,7 +580,18 @@ int write_web_page_to(struct string_buffer* web_page, char* route_string, int cl
             "\r\n");
     }
 
-    return send_value;
+    // copied
+    if (send_value == 0) {
+        int byte_status = send(clientSocket, web_page->str, web_page->size, 0);
+        byte_status != -1 || DIE("send error");
+    }
+    // client_count = client_count + 1;
+    shutdown(clientSocket, SHUT_RDWR);
+    close(clientSocket) == 0 || DIE("close error");
+    // string_buffer_clear(web_page);
+    // return send_value;
+    string_buffer_destroy(web_page);
+    pthread_exit(NULL);
 }
 /**
  * @brief Convert %xx to appropriate byte in given url

@@ -35,3 +35,5 @@ VIM text-actions
 -> ctrl+shift+i = format document (line haru takka milauxa)
 
 -> xdg-open file_name = double click gare jastai ho terminal bata . file_name = ., .., file to open.
+
+-> function name is a pointer itself.
