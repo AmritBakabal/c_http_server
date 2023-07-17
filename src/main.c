@@ -1,4 +1,5 @@
 #define _XOPEN_SOURCE
+#include <signal.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -26,6 +27,9 @@ struct client_info {
     char route_string[1024];
     int clientSocket;
 };
+void signal_handler(int sa){
+    ERROR("Client closed the connection !!!");
+}
 
 int main()
 {
@@ -33,20 +37,12 @@ int main()
     // create socket:
     int serverSocket;
     int port = 8000;
-    int RETVAL;
-
     char display_name[100];
     // buffer for snprintf:
-    int buffer_size = 1024;
-    char respbuffer[1024];
-    char reqbuffer[1024];
-    int route_size = 1024;
-    char route_string[route_size];
-    int reqbuffersize;
-    struct string_buffer* web_page = string_buffer_create();
-
-    DIR* dir;
-    struct dirent* dir_pointer;
+    struct sigaction act;
+    act.sa_handler = signal_handler;
+    act.sa_flags = 0;
+    sigaction(SIGPIPE,&act, NULL ) == 0 || ERROR("sigaction error....");
     // server response protocol: rfc 7230
 
     // file descriptor for the new socket is returned
@@ -86,27 +82,7 @@ int main()
         client_socket != -1 || DIE("accept error");
         INFO("Currently serving a client...");
 
-        // read client request
-        RETVAL = recv(client_socket, reqbuffer, 1024, 0);
-        RETVAL != -1 || DIE("recv error");
-        reqbuffer[RETVAL] = '\0';
-        // printf("%s\n", reqbuffer);
-        char final_route[1024];
-        char* hex_space = "%20";
-        int idx = 0;
-        get_route(reqbuffer, RETVAL, route_string, route_size);
-        // passing function which handles %20:
-        url_decode(route_string);
-        printf("ROUTE:%s\n", route_string);
-        int r_len = strlen(route_string);
-
-        // TODO -> handling client with thread (pthread->multi client)
-        struct client_info client_info;
-        client_info.clientSocket = client_socket;
-        // client_info.route_string = route_string; global ma vayera replace huna sakxa route_string
-        strncpy(client_info.route_string, route_string, 1024);
-
-        int pthread_retval = pthread_create(thread_id, NULL, write_web_page_to, (void*)&client_info) == 0 || ERROR("Couldn't create a thread!!");
+        int pthread_retval = pthread_create(&thread_id, NULL, write_web_page_to, (void*)&client_socket) == 0 || ERROR("Couldn't create a thread!!");
 
         // function call for webPage
         // int sendFile_value = write_web_page_to(web_page, route_string, client_socket);
@@ -128,9 +104,10 @@ int main()
  */
 void get_route(char* reqbuffer, int reqbuffersize, char* route_string, int route_size)
 {
-    char* method = strtok(reqbuffer, " ");
-    char* route = strtok(NULL, " ");
-    char* version = strtok(NULL, "\r");
+    char *saveptr;
+    char* method = strtok_r(reqbuffer, " ", &saveptr);
+    char* route = strtok_r(NULL, " ",&saveptr);
+    char* version = strtok_r(NULL, "\r", &saveptr);
     strncpy(route_string, route, route_size);
 }
 
@@ -148,13 +125,34 @@ char *strreplace(const char *src, const char *pattern, const char *replacement) 
 // void *write_web_page_to(struct string_buffer* web_page, char* route_string, int clientSocket)
 void* write_web_page_to(void* arg)
 {
-    struct client_info* client_info = (struct client_info*)arg;
-    char* route_string = client_info->route_string;
+    // struct client_info* client_info = (struct client_info*)arg;
+    // char* route_string = client_info->route_string;
+    INFO("void* arg = %p\n", arg);
+    INFO("value at void* arg (%p) = *((int* )arg) = %d\n", arg, *((int *)arg));
     struct string_buffer* web_page = string_buffer_create();
-    int clientSocket = client_info->clientSocket;
+    int clientSocket = *((int*)arg);
     int send_value = 0;
     char dir_path[1024];
     char show_path_str[1024];
+    char reqbuffer[1024];
+    char route_string[1024];
+    int route_size = 1024;
+
+        // read client request
+        int RETVAL = recv(clientSocket, reqbuffer, 1024, 0);
+        RETVAL != -1 || DIE("recv error");
+        reqbuffer[RETVAL] = '\0';
+        // printf("%s\n", reqbuffer);
+        char final_route[1024];
+        char* hex_space = "%20";
+        int idx = 0;
+        get_route(reqbuffer, RETVAL, route_string, route_size);
+        // passing function which handles %20:
+        url_decode(route_string);
+        printf("ROUTE:%s\n", route_string);
+        int r_len = strlen(route_string);
+
+
     strcpy(show_path_str, route_string);
     snprintf(dir_path, 1024, ".%s", route_string); //.-> used for security purpose so that it can't go to root of server.
     struct stat stat_buf; // man 2 stat
@@ -359,15 +357,15 @@ void* write_web_page_to(void* arg)
 
             // TODO
             //  for (int i = 0; i <= show_path_str; i++) {
-            INFO("strtok(%s)", show_path_str);
+            INFO("strtok_r(%s)", show_path_str);
             string_buffer_write(web_page,
 
                 "<div class=\"bar\">"
                 "<div class=\"arrow-size\">&#10148; </div><a  class=\"bar-hover\" href=\"/\">home</a>"
                 // "<a href=\"/\">home</a>"
             );
-
-            char* firstDirectory = strtok(show_path_str, "/");
+            char* saveptr;
+            char* firstDirectory = strtok_r(show_path_str, "/", &saveptr);
             if (firstDirectory != NULL) {
                 INFO("dir path: %s", firstDirectory);
 
@@ -383,7 +381,7 @@ void* write_web_page_to(void* arg)
 
                 INFO("CAME HERE");
                 while (1) {
-                    firstDirectory = strtok(NULL, "/");
+                    firstDirectory = strtok_r(NULL, "/", &saveptr);
                     if (firstDirectory != NULL) {
 
                         strcat(runningRoute, "/");
