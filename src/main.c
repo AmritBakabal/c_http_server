@@ -4,15 +4,18 @@
 #include <ifaddrs.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/sendfile.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "../include/die/die.h"
 #include "../include/stringbuffer/stringbuffer.h"
@@ -20,29 +23,34 @@
 const char *favicon_svg = "";
 void get_route(char *reqbuffer, int reqbuffersize, char *route_string,
                int route_size);
-void write_web_page_to(struct string_buffer *webpage, const char *route);
+void *write_web_page_to(void *arg);
 int write_file_to(struct string_buffer *webpage, const char *filename);
 void write_favicon_to(struct string_buffer *webpage);
 void url_decode(char *url);
 
+void sa_sigaction_func(int sig, siginfo_t *info, void * ucontext) {
+  ERROR("Client closed the connection!");
+}
+
 DIR *dir_stream;
 struct dirent *dir_entry;
 
+struct client_info {
+  char route_string[1024];
+  int client_socket;
+};
+
 int main() {
+  struct sigaction act;
+  act.sa_sigaction = sa_sigaction_func;
+  sigemptyset(&act.sa_mask);
+  act.sa_flags = SA_SIGINFO;
+  
+  sigaction(SIGPIPE, &act, NULL) == 0 || DIE("could not perform sigaction()");
   int reuse_address = 1;
   // create socket:
   int serverSocket;
   int port = 8000;
-  int RETVAL;
-  char display_name[100];
-  // buffer for snprintf:
-  int buffer_size = 1024;
-  char respbuffer[1024];
-  char reqbuffer[1024];
-  int route_size = 1024;
-  char route_string[route_size];
-  struct string_buffer *webpage = string_buffer_create();
-  int reqbuffersize;
 
   struct ifaddrs *ifaddrptr;
   char ip_address[100];
@@ -73,8 +81,8 @@ int main() {
   // server response protocol: rfc 7230
   // file descriptor for the new socket is returned
   serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-  serverSocket != -1 || DIE("socket error");
-  // reuse already bound address for this socket
+  serverSocket != -1 || DIE("count not perform socket()");
+  // reuse already bound address for this server socket
   setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &reuse_address,
              sizeof(reuse_address)) == 0 ||
       DIE("setsockopt error");
@@ -91,43 +99,33 @@ int main() {
   // bind:
   bind(serverSocket, (struct sockaddr *)&Internet_address,
        sizeof(struct sockaddr_in)) != -1 ||
-      DIE("bind error");
+      DIE("could not perform bind()");
   // listen:
-  listen(serverSocket, 10) != -1 || DIE("listen error");
+  listen(serverSocket, 10) != -1 || DIE("could not perform listen()");
   printf("Listening on %d\n", port);
 
   // accept:
   int client_socket;
   int client_count = 0;
-  ssize_t byte_status;
-
+  pthread_t thread_id;
   while (1) {
+    INFO("Listening for new client");
     client_socket = accept(serverSocket, NULL, NULL);
-    client_socket != -1 || DIE("accept error");
-    // read client request
-    RETVAL = recv(client_socket, reqbuffer, 1024, 0);
-    RETVAL != -1 || DIE("recv error");
-    reqbuffer[RETVAL] = '\0';
-    // printf("%s\n", reqbuffer);
-    char final_route[1024];
-    char *hex_space = "%20";
-    int idx = 0;
-    get_route(reqbuffer, RETVAL, route_string, route_size);
-    url_decode(route_string);
-    printf("ROUTE:%s\n", route_string);
+    if (client_socket != -1) {
+      // INFO("After accept() client %d\n", client_socket);
 
-    int r_len = strlen(route_string);
-
-    write_web_page_to(webpage, route_string);
-    // send:
-    byte_status = send(client_socket, webpage->str, webpage->size, 0);
-    byte_status != -1 || DIE("send error");
-
-    client_count = client_count + 1;
-    shutdown(client_socket, SHUT_RDWR);
-    close(client_socket) == 0 || DIE("close error");
+      // handle the client through the use of thread
+      pthread_create(&thread_id, NULL, write_web_page_to,
+                     (void *)&client_socket) == 0 ||
+          ERROR("couldn't create a thread for client %d", client_socket);
+      INFO("Handling new client: %d with thread %llu", client_socket,
+           thread_id);
+    } else {
+      ERROR("error while accept()");
+    }
   }
-  close(serverSocket);
+  close(serverSocket) == 0 ||
+      ERROR("could not perform close() on serverSocket");
   return 0;
 }
 
@@ -141,9 +139,10 @@ int main() {
  */
 void get_route(char *reqbuffer, int reqbuffersize, char *route_string,
                int route_size) {
-  char *method = strtok(reqbuffer, " ");
-  char *route = strtok(NULL, " ");
-  char *version = strtok(NULL, "\r");
+  char *saveptr;
+  char *method = strtok_r(reqbuffer, " ", &saveptr);
+  char *route = strtok_r(NULL, " ", &saveptr);
+  char *version = strtok_r(NULL, "\r", &saveptr);
   strncpy(route_string, route, route_size);
 }
 
@@ -201,24 +200,35 @@ void url_decode(char *url) {
   url[current_index] = '\0';
 }
 
-/*
-char *strreplace(struct string_buffer *dest, const char *src,
-                 const char *pattern, const char *replacement) {
-  string_buffer_clear(dest);
-  int src_len = strlen(src);
-  int pattern_len = strlen(src);
-  int repl_len = strlen(replacement);
-  int pattern_idx = 0;
+void *write_web_page_to(void *arg) {
+  // read client request
+  int client_socket = *((int *)arg);
+  char reqbuffer[1024];
+  int route_size = 1024;
+  char route[1024];
+  int RETVAL;
 
-  for (int i = 0; i < src_len; i++) {
+  int server_error = 0;
+  struct string_buffer *webpage = string_buffer_create();
+  RETVAL = recv(client_socket, reqbuffer, 1024, 0);
+
+  if (RETVAL == -1) {
+    ERROR("could not perform recv()");
+    server_error = 1;
+    goto cleanup;
   }
-}
-*/
 
-void write_web_page_to(struct string_buffer *webpage, const char *route) {
+  shutdown(client_socket, SHUT_RD) == 0 ||
+      WARN("could not perform shutdown(client_socket)");
+
+  reqbuffer[RETVAL] = '\0';
+  get_route(reqbuffer, RETVAL, route, route_size);
+  url_decode(route);
+  INFO("ROUTE:%s\n", route);
+
   DIR *dir_stream;
   struct dirent *dir_entry;
-  string_buffer_clear(webpage);
+  // string_buffer_clear(webpage);
 
   // since home page is '/', we donot want another backslash
   char *optional_slash = "/";
@@ -227,8 +237,8 @@ void write_web_page_to(struct string_buffer *webpage, const char *route) {
   }
 
   // prepend route with "."; to enforce relative path from current directory
-  // !IMPORTANT for security
-  char file_path[1024];
+  // IMPORTANT for security
+  char file_path[1025];
   snprintf(file_path, 1024, ".%s", route);
 
   // check for the file type of route
@@ -529,16 +539,61 @@ void write_web_page_to(struct string_buffer *webpage, const char *route) {
         }
       } else {
         // directory stream is NULL
+        INFO("directory stream at [%s] is NULL", file_path);
       }
       string_buffer_write(webpage,
                           "</div>"
                           "</body>"
                           "</html>");
-      closedir(dir_stream);
+      closedir(dir_stream) == 0 ||
+          WARN("could not perform closedir(\"%s\")", file_path);
     } else if (S_ISREG(stat_buf.st_mode)) {
       // this is a regular file
       // send file as data
-      write_file_to(webpage, file_path);
+      // previous method: write_file_to(webpage, file_path);
+      // TODO: use sendfile for efficient transfer of files
+      string_buffer_write(webpage,
+                          "HTTP/1.1 200 OK\r\n"
+                          "Content-Type: application/octet-stream\r\n"
+                          "Content-Length: %d\r\n"
+                          "Content-Disposition: attachment\r\n"
+                          "Cache-Control: max-age=3600\r\n"
+                          "\r\n",
+                          stat_buf.st_size);
+      int remaining_bytes = webpage->size;
+      while (remaining_bytes > 0) {
+        RETVAL = send(client_socket,
+                      webpage->str + (webpage->size - remaining_bytes),
+                      remaining_bytes, 0);
+        if (RETVAL == -1) {
+          ERROR("could not perform send() for file '%s'", file_path);
+          server_error = 1;
+          goto cleanup;
+        }
+        remaining_bytes -= RETVAL;
+      }
+
+      string_buffer_clear(webpage);
+      int input_fd = open(file_path, O_RDONLY);
+      off_t offset;
+      if (input_fd != -1) {
+        int remaining_bytes = stat_buf.st_size;
+        while (remaining_bytes > 0) {
+          offset = stat_buf.st_size - remaining_bytes;
+          RETVAL = sendfile(client_socket, input_fd, &offset, remaining_bytes);
+          if (RETVAL < 0) {
+            ERROR("could not perform sendfile()");
+            server_error = 1;
+            goto cleanup;
+          }
+          remaining_bytes -= RETVAL;
+        }
+        close(input_fd) == 0 || WARN("could not perform close(%s)", file_path);
+      } else {
+        ERROR("couldn't open file [%s]", file_path);
+        server_error = 1;
+        goto cleanup;
+      }
     } else {
       WARN("%s is not a directory or a regular file.", file_path);
       string_buffer_write(webpage,
@@ -566,11 +621,42 @@ void write_web_page_to(struct string_buffer *webpage, const char *route) {
                         strlen(favicon), favicon);
   } else {
     // non existant filepath
-    ERROR("could not get stat for %s", file_path);
+    WARN("could not get stat for %s", file_path);
     string_buffer_write(webpage,
                         "HTTP/1.1 404 NOT FOUND\r\n"
                         "\r\n");
   }
+  // INFO("sending data to client %d", client_socket);
+cleanup:
+  if (server_error > 0) {
+    ERROR("INTERNAL SERVER ERROR SENT");
+    // send INTERNAL SERVER ERROR as a response
+    string_buffer_clear(webpage);
+    string_buffer_write(webpage,
+                        "HTTP/1.1 500 INTERNAL SERVER ERROR\r\n"
+                        "\r\n");
+  }
+  int remaining_bytes = webpage->size;
+  while (remaining_bytes > 0) {
+    RETVAL =
+        send(client_socket, webpage->str + (webpage->size - remaining_bytes),
+             remaining_bytes, 0);
+    if (RETVAL == -1) {
+      ERROR("could not perform send()");
+      break;
+    }
+    remaining_bytes -= RETVAL;
+  }
+
+  // client_count = client_count + 1;
+  shutdown(client_socket, SHUT_WR) == 0 ||
+      ERROR("could not perform shutdown(SHUT_WR)");
+  close(client_socket) == 0 ||
+      ERROR("could not perform close(%d)", client_socket);
+
+  string_buffer_destroy(webpage);
+
+  pthread_exit(NULL);
 }
 
 int write_file_to(struct string_buffer *webpage, const char *filename) {
