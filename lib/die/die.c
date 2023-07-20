@@ -22,6 +22,7 @@ int log_error(const char *filename, int line, const char *msg, ...) {
   vfprintf(stderr, msg, args);
   fprintf(stderr, "\n");
   va_end(args);
+  return 1;
 }
 
 int log_warn(const char *filename, int line, const char *msg, ...) {
@@ -31,6 +32,7 @@ int log_warn(const char *filename, int line, const char *msg, ...) {
   vfprintf(stderr, msg, args);
   fprintf(stderr, "\n");
   va_end(args);
+  return 1;
 }
 
 int log_info(const char *filename, int line, const char *msg, ...) {
@@ -41,4 +43,5 @@ int log_info(const char *filename, int line, const char *msg, ...) {
   vfprintf(stderr, msg, args);
   fprintf(stderr, "\n");
   va_end(args);
+  return 1;
 }

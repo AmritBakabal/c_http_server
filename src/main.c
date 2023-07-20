@@ -1,8 +1,8 @@
 #define _XOPEN_SOURCE
-#include <signal.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <sys/sendfile.h>
 #include <sys/stat.h>
@@ -27,7 +27,8 @@ struct client_info {
     char route_string[1024];
     int clientSocket;
 };
-void signal_handler(int sa){
+void signal_handler(int sa)
+{
     ERROR("Client closed the connection !!!");
 }
 
@@ -42,7 +43,7 @@ int main()
     struct sigaction act;
     act.sa_handler = signal_handler;
     act.sa_flags = 0;
-    sigaction(SIGPIPE,&act, NULL ) == 0 || ERROR("sigaction error....");
+    sigaction(SIGPIPE, &act, NULL) == 0 || ERROR("sigaction error....");
     // server response protocol: rfc 7230
 
     // file descriptor for the new socket is returned
@@ -79,11 +80,14 @@ int main()
     while (1) {
         INFO("Waiting for new client...");
         client_socket = accept(serverSocket, NULL, NULL);
-        client_socket != -1 || DIE("accept error");
-        INFO("Currently serving a client...");
+        if (client_socket != -1) {
+            INFO("Currently serving a client...");
 
-        int pthread_retval = pthread_create(&thread_id, NULL, write_web_page_to, (void*)&client_socket) == 0 || ERROR("Couldn't create a thread!!");
+            int pthread_retval = pthread_create(&thread_id, NULL, write_web_page_to, (void*)&client_socket) == 0 || ERROR("Couldn't create a thread!!");
 
+        } else {
+            ERROR("accept error");
+        }
         // function call for webPage
         // int sendFile_value = write_web_page_to(web_page, route_string, client_socket);
         // snprintf(respbuffer, buffer_size, msg, client_count);
@@ -104,9 +108,9 @@ int main()
  */
 void get_route(char* reqbuffer, int reqbuffersize, char* route_string, int route_size)
 {
-    char *saveptr;
+    char* saveptr;
     char* method = strtok_r(reqbuffer, " ", &saveptr);
-    char* route = strtok_r(NULL, " ",&saveptr);
+    char* route = strtok_r(NULL, " ", &saveptr);
     char* version = strtok_r(NULL, "\r", &saveptr);
     strncpy(route_string, route, route_size);
 }
@@ -127,8 +131,8 @@ void* write_web_page_to(void* arg)
 {
     // struct client_info* client_info = (struct client_info*)arg;
     // char* route_string = client_info->route_string;
-    INFO("void* arg = %p\n", arg);
-    INFO("value at void* arg (%p) = *((int* )arg) = %d\n", arg, *((int *)arg));
+    // INFO("void* arg = %p\n", arg);
+    // INFO("value at void* arg (%p) = *((int* )arg) = %d\n", arg, *((int *)arg));
     struct string_buffer* web_page = string_buffer_create();
     int clientSocket = *((int*)arg);
     int send_value = 0;
@@ -138,20 +142,29 @@ void* write_web_page_to(void* arg)
     char route_string[1024];
     int route_size = 1024;
 
-        // read client request
-        int RETVAL = recv(clientSocket, reqbuffer, 1024, 0);
-        RETVAL != -1 || DIE("recv error");
-        reqbuffer[RETVAL] = '\0';
-        // printf("%s\n", reqbuffer);
-        char final_route[1024];
-        char* hex_space = "%20";
-        int idx = 0;
-        get_route(reqbuffer, RETVAL, route_string, route_size);
-        // passing function which handles %20:
-        url_decode(route_string);
-        printf("ROUTE:%s\n", route_string);
-        int r_len = strlen(route_string);
-
+    // read client request
+    int RETVAL = recv(clientSocket, reqbuffer, 1, MSG_WAITALL);
+    // RETVAL != -1 || ERROR("recv error");
+    if(RETVAL == -1){
+        ERROR("recv error!!")
+        //TODO
+    }
+    int RETVAL = recv(clientSocket, reqbuffer+1, 1023, 0);
+    // RETVAL != -1 || ERROR("recv error");
+    if(RETVAL == -1){
+        ERROR("recv error!!")
+        //TODO
+    }
+    reqbuffer[RETVAL] = '\0';
+    // printf("%s\n", reqbuffer);
+    char final_route[1024];
+    char* hex_space = "%20";
+    int idx = 0;
+    get_route(reqbuffer, RETVAL, route_string, route_size);
+    // passing function which handles %20:
+    url_decode(route_string);
+    printf("ROUTE:%s\n", route_string);
+    int r_len = strlen(route_string);
 
     strcpy(show_path_str, route_string);
     snprintf(dir_path, 1024, ".%s", route_string); //.-> used for security purpose so that it can't go to root of server.
@@ -379,7 +392,7 @@ void* write_web_page_to(void* arg)
                 runningRoute[1] = '\0';
                 strcat(runningRoute, firstDirectory);
 
-                INFO("CAME HERE");
+                // INFO("CAME HERE");
                 while (1) {
                     firstDirectory = strtok_r(NULL, "/", &saveptr);
                     if (firstDirectory != NULL) {
@@ -534,7 +547,7 @@ void* write_web_page_to(void* arg)
                 stat_buf.st_size);
             // send:
             int byte_status = send(clientSocket, web_page->str, web_page->size, 0);
-            byte_status != -1 || DIE("send error");
+            byte_status != -1 || ERROR("send error");
             int open_fd = open(dir_path, O_RDONLY);
             if (open_fd >= 0) {
                 ssize_t no_of_bytes = sendfile(clientSocket, open_fd, 0, stat_buf.st_size);
@@ -581,11 +594,11 @@ void* write_web_page_to(void* arg)
     // copied
     if (send_value == 0) {
         int byte_status = send(clientSocket, web_page->str, web_page->size, 0);
-        byte_status != -1 || DIE("send error");
+        byte_status != -1 || ERROR("send error");
     }
     // client_count = client_count + 1;
     shutdown(clientSocket, SHUT_RDWR);
-    close(clientSocket) == 0 || DIE("close error");
+    close(clientSocket) == 0 || ERROR("close error");
     // string_buffer_clear(web_page);
     // return send_value;
     string_buffer_destroy(web_page);
