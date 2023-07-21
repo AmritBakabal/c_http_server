@@ -12,3 +12,6 @@ obj/stringbuffer.o: lib/stringbuffer/stringbuffer.c
 
 run: bin/main
 	./bin/main
+
+debug: bin/main
+	gdb ./bin/main

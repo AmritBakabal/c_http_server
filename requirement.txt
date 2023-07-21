@@ -4,3 +4,6 @@ file click -> downlaod.
  
 ordering -> 
 folder with alphabetical order 
+
+server must close the connection not the client -> download cancel error case.
+

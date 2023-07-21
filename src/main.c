@@ -141,23 +141,27 @@ void* write_web_page_to(void* arg)
     char reqbuffer[1024];
     char route_string[1024];
     int route_size = 1024;
-
+    int server_error = 0;
     // read client request
     int RETVAL = recv(clientSocket, reqbuffer, 1, MSG_WAITALL);
     // RETVAL != -1 || ERROR("recv error");
-    if(RETVAL == -1){
+    if (RETVAL == -1) {
         ERROR("recv error!!")
-        //TODO
+        server_error = 1;
+        goto catch_error;
     }
-    int RETVAL = recv(clientSocket, reqbuffer+1, 1023, 0);
+    RETVAL = recv(clientSocket, reqbuffer + 1, 1023, 0);
     // RETVAL != -1 || ERROR("recv error");
-    if(RETVAL == -1){
+    if (RETVAL == -1) {
         ERROR("recv error!!")
-        //TODO
+        server_error = 1;
+        goto catch_error;
     }
     reqbuffer[RETVAL] = '\0';
-    // printf("%s\n", reqbuffer);
-    char final_route[1024];
+
+    shutdown(clientSocket, SHUT_RD) == 0 || WARN("couldn't perform shutdown(clientSocket)");
+        // printf("%s\n", reqbuffer);
+        char final_route[1024];
     char* hex_space = "%20";
     int idx = 0;
     get_route(reqbuffer, RETVAL, route_string, route_size);
@@ -368,7 +372,6 @@ void* write_web_page_to(void* arg)
                 "</defs>"
                 "</svg>");
 
-            // TODO
             //  for (int i = 0; i <= show_path_str; i++) {
             INFO("strtok_r(%s)", show_path_str);
             string_buffer_write(web_page,
@@ -546,15 +549,32 @@ void* write_web_page_to(void* arg)
                 "\r\n",
                 stat_buf.st_size);
             // send:
-            int byte_status = send(clientSocket, web_page->str, web_page->size, 0);
-            byte_status != -1 || ERROR("send error");
+            int remaining_bytes = web_page->size;
+            while (remaining_bytes > 0) {
+                int byte_status = send(clientSocket, web_page->str + (web_page->size - remaining_bytes),
+                    remaining_bytes, 0);
+                if (byte_status == -1) {
+                    ERROR("could not perform send() for file");
+                    server_error = 1;
+                    goto catch_error;
+                }
+                remaining_bytes -= byte_status;
+            }
             int open_fd = open(dir_path, O_RDONLY);
+            off_t offset;
             if (open_fd >= 0) {
-                ssize_t no_of_bytes = sendfile(clientSocket, open_fd, 0, stat_buf.st_size);
-                if (no_of_bytes < 0) {
-                    ERROR("error at sendfile!!!");
-                } else {
-                    send_value = 1;
+                int remaining_bytes = stat_buf.st_size;
+                while (remaining_bytes > 0) {
+                    offset = stat_buf.st_size - remaining_bytes;
+                    ssize_t no_of_bytes = sendfile(clientSocket, open_fd, &offset, remaining_bytes);
+                    if (no_of_bytes < 0) {
+                        ERROR("error at sendfile!!!");
+                        server_error = 1;
+                        goto catch_error;
+                    } else {
+                        send_value = 1;
+                    }
+                    remaining_bytes -= no_of_bytes;
                 }
             }
             // string_buffer_write(web_page,
@@ -596,8 +616,9 @@ void* write_web_page_to(void* arg)
         int byte_status = send(clientSocket, web_page->str, web_page->size, 0);
         byte_status != -1 || ERROR("send error");
     }
+catch_error:
     // client_count = client_count + 1;
-    shutdown(clientSocket, SHUT_RDWR);
+    shutdown(clientSocket, { SHUT_RDWR });
     close(clientSocket) == 0 || ERROR("close error");
     // string_buffer_clear(web_page);
     // return send_value;
